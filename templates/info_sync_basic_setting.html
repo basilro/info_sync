@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div>
+  {{ macros.m_button_group([['globalSettingSaveBtn', '설정 저장'],
+                            ['providersBtn', 'provider 확인']]) }}
+  {{ macros.m_row_start('5') }}
+  {{ macros.m_row_end() }}
+
+  <form id='setting' name='setting'>
+    <div class="tab-content">
+      {{ macros.setting_input_text_and_buttons('scan_root', '스캔 루트 폴더',
+          [['scanRootBrowseBtn', '찾아보기']], value=arg['scan_root'],
+          desc=['작품 폴더들이 들어있는 상위 폴더. Info 관리 탭에서 이 아래를 스캔한다.']) }}
+
+      {{ macros.setting_input_text('provider_priority', '대표 소스 우선순위',
+          value=arg['provider_priority'],
+          desc='콤마로 구분. 완전일치가 여러 사이트일 때 앞쪽을 대표로 삼는다. 예) kakaopage,kakao,naver') }}
+
+      {{ macros.setting_checkbox('merge_fill', '빈 필드 병합 채우기',
+          value=arg['merge_fill'],
+          desc='대표 소스의 빈 필드만 다른 사이트 완전일치 후보에서 채움(이미 값 있으면 안 덮어씀).') }}
+
+      {{ macros.setting_checkbox('cover_overwrite', 'cover 덮어쓰기',
+          value=arg['cover_overwrite'],
+          desc='끄면 표지가 없을 때만 저장. 켜면 항상 새로 저장.') }}
+
+      <h5 style="margin-top:14px;">사이트별 쿠키</h5>
+      <small class="text-muted">대부분 info 조회엔 불필요. 연령인증/로그인 필요한 사이트만 입력(JSON 배열 형식).</small>
+
+      {{ macros.setting_input_textarea('cookies_kakaopage', '카카오페이지 쿠키',
+          value=arg['cookies_kakaopage'], row='3',
+          desc=['page.kakao.com. 19금 등 연령제한 작품 조회 시 필요.']) }}
+      {{ macros.setting_input_textarea('cookies_kakao', '카카오웹툰 쿠키',
+          value=arg['cookies_kakao'], row='3',
+          desc=['webtoon.kakao.com.']) }}
+      {{ macros.setting_input_textarea('cookies_naver', '네이버(시리즈) 쿠키',
+          value=arg['cookies_naver'], row='3',
+          desc=['series.naver.com / comic.naver.com.']) }}
+
+      {{ macros.setting_checkbox('use_proxy', '프록시 사용',
+          value=arg['use_proxy']) }}
+      {{ macros.setting_input_text('proxy_url', '프록시 URL',
+          value=arg['proxy_url']) }}
+    </div>
+  </form>
+</div>
+
+<script>
+$(document).ready(function(){
+  $('body').on('click', '#scanRootBrowseBtn', function(e){
+    e.preventDefault();
+    var cur = $('#scan_root').val().trim() || '/';
+    globalSelectLocalFolder('스캔 루트 폴더', cur, function(result){
+      $('#scan_root').val(result);
+    });
+  });
+  $('#providersBtn').on('click', function(){
+    $.post('/' + package_name + '/ajax/basic/command', {command:'providers'},
+      function(data){
+        if(data && data.ret==='success'){
+          var ls = (data.providers||[]).map(function(p){
+            return p.name+'('+p.key+') '+(p.available?'✓':'✗쿠키/설정필요');
+          });
+          alert(ls.length ? ls.join('\n') : '등록된 provider 없음 (아직 미구현)');
+        } else { alert((data&&data.msg)||'실패'); }
+      });
+  });
+});
+</script>
+{% endblock %}

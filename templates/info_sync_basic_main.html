@@ -1,0 +1,220 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container-fluid">
+
+  <!-- 폴더 선택 -->
+  <div style="border:1px solid #ddd; border-radius:4px; padding:10px; margin:10px 0;">
+    <div class="form-inline">
+      <label style="font-weight:bold; margin-right:8px;">폴더</label>
+      <select id="folderSel" class="form-control" style="min-width:280px; margin-right:6px;"></select>
+      <input id="folderPath" type="text" class="form-control"
+             placeholder="직접 경로 입력" style="min-width:320px; margin-right:6px;">
+      <button id="browseBtn" class="btn btn-sm btn-outline-secondary" style="margin-right:6px;">찾아보기</button>
+      <button id="scanBtn" class="btn btn-sm btn-primary" style="margin-right:6px;">스캔</button>
+      <button id="matchBtn" class="btn btn-sm btn-success">매칭 스캔</button>
+    </div>
+    <small class="text-muted">스캔=폴더 내 작품의 info/cover 현황 · 매칭 스캔=제목으로 전 사이트 교차조회</small>
+  </div>
+
+  <!-- 실행 상태 -->
+  <div id="runBox" style="display:none; border:1px solid #cce; border-radius:4px; padding:8px; margin:10px 0; background:#f7f9ff;">
+    <b>실행:</b> <span id="runStatus">-</span>
+    (<span id="runDone">0</span>/<span id="runTotal">0</span>)
+    <pre id="runLog" style="max-height:160px; overflow:auto; margin:6px 0 0; font-size:12px;"></pre>
+  </div>
+
+  <!-- 작품 리스트 -->
+  <div id="listBox"></div>
+
+  <!-- 매칭 결과 -->
+  <div id="matchBox"></div>
+</div>
+
+<!-- info.xml 편집 모달 -->
+<div class="modal fade" id="xmlModal" tabindex="-1">
+  <div class="modal-dialog modal-lg"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title" id="xmlTitle">info.xml</h5>
+      <button type="button" class="close" data-dismiss="modal">&times;</button></div>
+    <div class="modal-body">
+      <textarea id="xmlText" class="form-control" rows="18" style="font-family:monospace; font-size:12px;"></textarea>
+    </div>
+    <div class="modal-footer">
+      <button id="xmlDeleteBtn" class="btn btn-outline-danger mr-auto">info.xml 삭제</button>
+      <button id="xmlSaveBtn" class="btn btn-primary">저장</button>
+      <button class="btn btn-secondary" data-dismiss="modal">닫기</button>
+    </div>
+  </div></div>
+</div>
+
+<script>
+var PKG = package_name;
+var curFolder = '';
+var editWork = '';
+
+function post(cmd, args, cb){
+  args = args || {}; args.command = cmd;
+  $.post('/' + PKG + '/ajax/basic/command', args, cb);
+}
+function badge(ok){ return ok
+  ? '<span class="badge badge-success">O</span>'
+  : '<span class="badge badge-secondary">-</span>'; }
+function esc(s){ return $('<div>').text(s==null?'':s).html(); }
+
+function loadFolders(){
+  post('folders', {}, function(d){
+    if(!d||d.ret!=='success') return;
+    var sel = $('#folderSel').empty();
+    sel.append('<option value="">(스캔 루트)</option>');
+    (d.folders||[]).forEach(function(f){
+      sel.append('<option value="'+esc(f)+'">'+esc(f)+'</option>');
+    });
+  });
+}
+function targetFolder(){
+  return $('#folderPath').val().trim() || $('#folderSel').val() || '';
+}
+
+// ── 스캔(현황) ─────────────────────────────────────────
+function doScan(){
+  curFolder = targetFolder();
+  post('scan', {arg1: curFolder}, function(d){
+    if(!d||d.ret!=='success'){ alert((d&&d.msg)||'실패'); return; }
+    $('#matchBox').empty();
+    var rows = d.rows||[];
+    var h = '<h5>작품 현황 ('+rows.length+') — '+esc(d.folder||'')+'</h5>';
+    h += '<table class="table table-sm table-hover"><thead><tr>'
+       + '<th>작품(폴더)</th><th>info</th><th>cover</th><th>제목</th>'
+       + '<th>작가</th><th>출처</th><th>수정</th><th></th></tr></thead><tbody>';
+    rows.forEach(function(r){
+      h += '<tr>'
+        + '<td>'+esc(r.name)+'</td>'
+        + '<td>'+badge(r.has_info)+'</td><td>'+badge(r.has_cover)+'</td>'
+        + '<td>'+esc(r.title)+'</td><td>'+esc(r.writer)+'</td>'
+        + '<td>'+esc(r.source)+'</td><td><small>'+esc(r.mtime)+'</small></td>'
+        + '<td><button class="btn btn-xs btn-outline-primary editBtn" data-f="'+esc(r.folder)+'">보기/편집</button></td>'
+        + '</tr>';
+    });
+    h += '</tbody></table>';
+    $('#listBox').html(h);
+  });
+}
+
+// ── 매칭 스캔(교차조회) ────────────────────────────────
+function doMatch(){
+  curFolder = targetFolder();
+  post('match_scan', {arg1: curFolder}, function(d){
+    if(!d||d.ret!=='success'){ alert((d&&d.msg)||'실패'); return; }
+    $('#matchBox').html('<p>매칭 스캔 중…</p>');
+    pollMatch();
+  });
+}
+function pollMatch(){
+  post('match_result', {}, function(d){
+    if(!d||d.ret!=='success') return;
+    if(d.status==='running'){ setTimeout(pollMatch, 1500); return; }
+    if(d.status==='error'){ $('#matchBox').html('<p class="text-danger">오류: '+esc((d.result||{}).error)+'</p>'); return; }
+    renderMatch(d.result||{});
+  });
+}
+function candSelect(entry, gi){
+  var opts = (entry.candidates||[]).map(function(c, i){
+    var sel = (entry.pick && c.provider===entry.pick.provider && c.id===entry.pick.id) ? ' selected':'';
+    return '<option value="'+i+'"'+sel+'>'+esc(c.provider)+' · '+esc(c.title)
+         + (c.exact?' [일치]':'')+' (#'+esc(c.id)+')</option>';
+  }).join('');
+  return '<select class="form-control form-control-sm candSel" data-g="'+gi+'">'+opts+'</select>';
+}
+function groupTable(title, list, gi, withSel){
+  if(!list.length) return '';
+  var h = '<h6 style="margin-top:12px;">'+title+' ('+list.length+')</h6>';
+  h += '<table class="table table-sm"><tbody>';
+  list.forEach(function(e, idx){
+    window._MATCH = window._MATCH || {}; window._MATCH[gi+'_'+idx] = e;
+    h += '<tr data-key="'+gi+'_'+idx+'">'
+      + '<td style="width:24px;"><input type="checkbox" class="pickCb" '+(gi==='c'?'checked':'')+'></td>'
+      + '<td>'+esc(e.name)+' '+badge(e.has_info)+badge(e.has_cover)+'</td>'
+      + '<td>'+(withSel ? candSelect(e, gi+'_'+idx) : (e.pick?esc(e.pick.provider)+' · '+esc(e.pick.title):''))+'</td>'
+      + '</tr>';
+  });
+  h += '</tbody></table>';
+  return h;
+}
+function renderMatch(res){
+  var h = '<hr><h5>매칭 결과 (총 '+(res.total||0)+')</h5>';
+  h += '<div style="margin:6px 0;">'
+     + '<button id="runInfoBtn" class="btn btn-sm btn-primary">선택 info 작성</button> '
+     + '<button id="runCoverBtn" class="btn btn-sm btn-outline-primary">선택 cover만</button></div>';
+  window._MATCH = {};
+  h += groupTable('확정', res.confident||[], 'c', true);
+  h += groupTable('애매(후보 선택)', res.ambiguous||[], 'a', true);
+  h += groupTable('미매칭', res.nomatch||[], 'n', false);
+  $('#matchBox').html(h);
+}
+function collectPayload(){
+  var items = [];
+  $('#matchBox tr[data-key]').each(function(){
+    if(!$(this).find('.pickCb').is(':checked')) return;
+    var e = window._MATCH[$(this).data('key')];
+    if(!e) return;
+    var sel = $(this).find('.candSel');
+    var pick = e.pick;
+    if(sel.length){ pick = e.candidates[parseInt(sel.val(),10)]; }
+    if(!pick) return;
+    items.push({folder: e.folder, provider: pick.provider, id: pick.id});
+  });
+  return items;
+}
+function runKind(cmd){
+  var items = collectPayload();
+  if(!items.length){ alert('선택된 항목 없음'); return; }
+  post(cmd, {arg1: JSON.stringify(items)}, function(d){
+    if(!d||d.ret!=='success'){ alert((d&&d.msg)||'실패'); return; }
+    $('#runBox').show(); pollRun();
+  });
+}
+function pollRun(){
+  post('run_status', {}, function(d){
+    if(!d||d.ret!=='success') return;
+    $('#runStatus').text(d.status); $('#runDone').text(d.done); $('#runTotal').text(d.total);
+    $('#runLog').text((d.log||[]).join('\n'));
+    if(d.status==='running') setTimeout(pollRun, 1200);
+    else doScan();
+  });
+}
+
+// ── 편집 모달 ──────────────────────────────────────────
+function openEdit(folder){
+  editWork = folder;
+  post('get_xml', {arg1: folder}, function(d){
+    if(!d||d.ret!=='success'){ alert('실패'); return; }
+    $('#xmlTitle').text(folder);
+    $('#xmlText').val(d.xml || '');
+    $('#xmlModal').modal('show');
+  });
+}
+
+$(document).ready(function(){
+  loadFolders();
+  $('#browseBtn').on('click', function(e){ e.preventDefault();
+    var cur = $('#folderPath').val().trim() || $('#folderSel').val() || '/';
+    globalSelectLocalFolder('스캔 폴더', cur, function(r){ $('#folderPath').val(r); });
+  });
+  $('#scanBtn').on('click', doScan);
+  $('#matchBtn').on('click', doMatch);
+  $('body').on('click', '.editBtn', function(){ openEdit($(this).data('f')); });
+  $('body').on('click', '#runInfoBtn', function(){ runKind('run_info'); });
+  $('body').on('click', '#runCoverBtn', function(){ runKind('run_cover'); });
+  $('#xmlSaveBtn').on('click', function(){
+    post('save_xml', {arg1: editWork, arg2: $('#xmlText').val()}, function(d){
+      alert((d&&d.msg)||'저장'); $('#xmlModal').modal('hide'); doScan();
+    });
+  });
+  $('#xmlDeleteBtn').on('click', function(){
+    if(!confirm('info.xml 삭제?')) return;
+    post('delete_info', {arg1: editWork}, function(d){
+      alert((d&&d.msg)||'삭제'); $('#xmlModal').modal('hide'); doScan();
+    });
+  });
+});
+</script>
+{% endblock %}

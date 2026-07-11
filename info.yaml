@@ -1,0 +1,6 @@
+description: 작품 폴더 info.xml / cover 관리 및 다중 사이트 메타데이터 동기화
+developer: basilro
+home: https://github.com/basilro/info_sync
+package_name: info_sync
+title: info_sync
+version: 0.1.0

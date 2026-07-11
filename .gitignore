@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# IDE / OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
+
+# 탐색/캡처 산출물
+_poc/
+_dump_*/
+*.har
+har/
+cookies*.json
+browser_cookies.json
+
+# 개인 설정 / 로그
+config.local.*
+*.local
+*.log
+
+# dev 전용 (배포 repo 에 안 올림)
+test_*.py
+diagnose_*.py
+docs/
+tools/
+
+# === 암호화 대상 평문 .py (dev 전용, 배포는 .pyf) ===
+worker.py
+providers.py
+mod_basic.py
+client_kakaopage.py
+client_kakao.py
+client_naver.py
