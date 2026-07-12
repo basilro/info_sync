@@ -2,6 +2,9 @@
 {% block content %}
 <div class="container-fluid">
 
+  <!-- 매칭 결과 (최상단) -->
+  <div id="matchBox"></div>
+
   <!-- 폴더 선택 -->
   <div style="border:1px solid #ddd; border-radius:4px; padding:10px; margin:10px 0;">
     <div class="form-inline">
@@ -25,9 +28,6 @@
 
   <!-- 작품 리스트 -->
   <div id="listBox"></div>
-
-  <!-- 매칭 결과 -->
-  <div id="matchBox"></div>
 </div>
 
 <!-- info.xml 편집 모달 -->
@@ -202,7 +202,7 @@ function groupTable(title, list, gi, withSel){
   return h;
 }
 function renderMatch(res){
-  var h = '<hr><h5>매칭 결과 (총 '+(res.total||0)+')</h5>';
+  var h = '<h5>매칭 결과 (총 '+(res.total||0)+')</h5>';
   h += '<div style="margin:6px 0;">'
      + '<button id="runInfoBtn" class="btn btn-sm btn-primary">선택 info 작성</button> '
      + '<button id="runCoverBtn" class="btn btn-sm btn-outline-primary">선택 cover만</button></div>';
