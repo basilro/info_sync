@@ -34,9 +34,12 @@
       {{ macros.setting_input_textarea('cookies_kakao', '카카오웹툰 쿠키',
           value=arg['cookies_kakao'], row='3',
           desc=['webtoon.kakao.com.']) }}
-      {{ macros.setting_input_textarea('cookies_naver', '네이버(시리즈) 쿠키',
+      {{ macros.setting_input_textarea('cookies_naver', '네이버웹툰 쿠키',
           value=arg['cookies_naver'], row='3',
-          desc=['series.naver.com / comic.naver.com.']) }}
+          desc=['comic.naver.com. 성인/유료 작품 조회 시 필요.']) }}
+      {{ macros.setting_input_textarea('cookies_naverseries', '네이버시리즈 쿠키',
+          value=arg['cookies_naverseries'], row='3',
+          desc=['series.naver.com. 성인물 조회 시 필요.']) }}
 
       {{ macros.setting_checkbox('use_proxy', '프록시 사용',
           value=arg['use_proxy']) }}
