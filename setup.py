@@ -28,7 +28,7 @@ try:
     _here = _os.path.dirname(_os.path.abspath(__file__))
     for _name in ('worker', 'providers', 'client_kakaopage',
                   'client_kakao', 'client_naver', 'client_series',
-                  'client_novelpia', 'client_lezhin'):
+                  'client_novelpia', 'client_lezhin', 'client_munpia'):
         if (not _os.path.exists(_os.path.join(_here, _name + '.py'))) \
                 and _os.path.exists(_os.path.join(_here, _name + '.pyf')):
             _mod = SupportSC.load_module_f(__file__, _name)
