@@ -47,6 +47,22 @@
   </div></div>
 </div>
 
+<!-- 개별 매칭 모달 -->
+<div class="modal fade" id="oneModal" tabindex="-1">
+  <div class="modal-dialog"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title" id="oneTitle">개별 매칭</h5>
+      <button type="button" class="close" data-dismiss="modal">&times;</button></div>
+    <div class="modal-body">
+      <div id="oneBody"><p>검색 중…</p></div>
+    </div>
+    <div class="modal-footer">
+      <button id="oneInfoBtn" class="btn btn-primary">info 작성</button>
+      <button id="oneCoverBtn" class="btn btn-outline-primary">cover만</button>
+      <button class="btn btn-secondary" data-dismiss="modal">닫기</button>
+    </div>
+  </div></div>
+</div>
+
 <script>
 var package_name = "{{ arg['package_name'] }}";
 var PKG = package_name;
@@ -124,7 +140,11 @@ function doScan(){
         + '<td>'+badge(r.has_info)+'</td><td>'+badge(r.has_cover)+'</td>'
         + '<td>'+esc(r.title)+'</td><td>'+esc(r.writer)+'</td>'
         + '<td>'+esc(r.source)+'</td><td><small>'+esc(r.mtime)+'</small></td>'
-        + '<td><button class="btn btn-xs btn-outline-primary editBtn" data-f="'+esc(r.folder)+'">보기/편집</button></td>'
+        + '<td style="white-space:nowrap;">'
+        +   '<button class="btn btn-xs btn-outline-success oneBtn" data-f="'+escAttr(r.folder)+'" data-n="'+escAttr(r.name)+'">'
+        +     (r.has_info?'재매칭':'매칭')+'</button> '
+        +   '<button class="btn btn-xs btn-outline-primary editBtn" data-f="'+escAttr(r.folder)+'">보기/편집</button>'
+        + '</td>'
         + '</tr>';
     });
     h += '</tbody></table>';
@@ -235,6 +255,38 @@ function openEdit(folder){
   });
 }
 
+// ── 개별 매칭(단일 작품 재스캔) ────────────────────────
+var oneFolder = '', oneCands = [];
+function openOne(folder, name){
+  oneFolder = folder; oneCands = [];
+  $('#oneTitle').text('개별 매칭 — ' + name);
+  $('#oneBody').html('<p>검색 중…</p>');
+  $('#oneModal').modal('show');
+  post('rematch_one', {arg1: name}, function(d){
+    if(!d||d.ret!=='success'){ $('#oneBody').html('<p class="text-danger">'+((d&&d.msg)||'실패')+'</p>'); return; }
+    oneCands = d.candidates || [];
+    if(!oneCands.length){ $('#oneBody').html('<p class="text-muted">후보 없음. 폴더명을 확인하거나 보기/편집에서 직접 입력하세요.</p>'); return; }
+    var opts = oneCands.map(function(c, i){
+      return '<option value="'+i+'">'+esc(c.provider)+' · '+esc(c.title)
+           + (c.exact?' [일치]':'')+' (#'+esc(c.id)+')</option>';
+    }).join('');
+    $('#oneBody').html('<label style="font-weight:bold;">후보 선택 ('+oneCands.length+')</label>'
+      + '<select id="oneCand" class="form-control form-control-sm">'+opts+'</select>'
+      + '<small class="text-muted">info 작성 시 표지가 없으면 함께 내려받는다.</small>');
+  });
+}
+function runOne(cmd){
+  if(!oneCands.length){ alert('후보 없음'); return; }
+  var i = parseInt($('#oneCand').val(), 10) || 0;
+  var c = oneCands[i];
+  if(!c){ alert('선택된 후보 없음'); return; }
+  post(cmd, {arg1: JSON.stringify([{folder: oneFolder, provider: c.provider, id: c.id}])}, function(d){
+    if(!d||d.ret!=='success'){ alert((d&&d.msg)||'실패'); return; }
+    $('#oneModal').modal('hide');
+    $('#runBox').show(); pollRun();
+  });
+}
+
 $(document).ready(function(){
   loadFolders();
   $('#browseBtn').on('click', function(e){ e.preventDefault();
@@ -244,6 +296,9 @@ $(document).ready(function(){
   $('#scanBtn').on('click', doScan);
   $('#matchBtn').on('click', doMatch);
   $('body').on('click', '.editBtn', function(){ openEdit($(this).data('f')); });
+  $('body').on('click', '.oneBtn', function(){ openOne($(this).data('f'), $(this).data('n')); });
+  $('#oneInfoBtn').on('click', function(){ runOne('run_info'); });
+  $('#oneCoverBtn').on('click', function(){ runOne('run_cover'); });
   $('body').on('click', '#runInfoBtn', function(){ runKind('run_info'); });
   $('body').on('click', '#runCoverBtn', function(){ runKind('run_cover'); });
   $('#xmlSaveBtn').on('click', function(){
