@@ -55,6 +55,15 @@
       {{ macros.setting_input_textarea('cookies_toomics', '투믹스 쿠키',
           value=arg['cookies_toomics'], row='3',
           desc=['www.toomics.com. 성인물(19) 조회 시 필요.']) }}
+      {{ macros.setting_input_textarea('cookies_ridi', '리디북스 쿠키',
+          value=arg['cookies_ridi'], row='3',
+          desc=['ridibooks.com. 성인물(19) 조회 시 필요(flaresolverr에 전달됨).']) }}
+
+      <h5 style="margin-top:14px;">리디북스 Cloudflare 우회</h5>
+      <small class="text-muted">리디는 Cloudflare로 막혀 flaresolverr 프록시가 필요하다. 배포처(ff 컨테이너)에서 닿는 주소를 넣는다.</small>
+      {{ macros.setting_input_text('flaresolverr_url', 'flaresolverr URL',
+          value=arg['flaresolverr_url'],
+          desc='예) http://172.17.0.1:8191/v1 (ff→브리지 게이트웨이). 비우면 리디 조회 불가.') }}
 
       {{ macros.setting_checkbox('use_proxy', '프록시 사용',
           value=arg['use_proxy']) }}
