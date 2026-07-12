@@ -36,7 +36,8 @@
     <div class="modal-header"><h5 class="modal-title" id="xmlTitle">info.xml</h5>
       <button type="button" class="close" data-dismiss="modal">&times;</button></div>
     <div class="modal-body">
-      <textarea id="xmlText" class="form-control" rows="18" style="font-family:monospace; font-size:12px;"></textarea>
+      <small class="text-muted">태그(항목)는 고정이고 값만 편집한다. 빈 칸은 저장 시 비워진다.</small>
+      <div id="xmlFields" style="margin-top:8px;"></div>
     </div>
     <div class="modal-footer">
       <button id="xmlDeleteBtn" class="btn btn-outline-danger mr-auto">info.xml 삭제</button>
@@ -60,6 +61,37 @@ function badge(ok){ return ok
   ? '<span class="badge badge-success">O</span>'
   : '<span class="badge badge-secondary">-</span>'; }
 function esc(s){ return $('<div>').text(s==null?'':s).html(); }
+function escAttr(s){ return esc(s).replace(/"/g,'&quot;'); }
+
+// info.xml 편집 UI — 태그(항목) 고정, 값만 편집. [tag, 표시명, 여러줄여부]
+var XML_FIELDS = [
+  ['Title','제목',0], ['Series','시리즈',0], ['Writer','작가',0], ['Publisher','출판사',0],
+  ['Genre','장르',0], ['Tags','태그',0], ['SeriesStatus','연재상태',0], ['AgeRating','연령',0],
+  ['Year','년',0], ['Month','월',0], ['Day','일',0], ['CommunityRating','평점',0],
+  ['Count','회차수',0], ['Web','링크',0], ['Summary','줄거리',1], ['Notes','비고',1]
+];
+function buildFieldForm(fields){
+  fields = fields || {};
+  var shown = {}, h = '';
+  XML_FIELDS.forEach(function(f){
+    var tag=f[0], label=f[1], multi=f[2]===1; shown[tag]=1;
+    var v = fields[tag]==null ? '' : fields[tag];
+    h += '<div class="form-group row" style="margin-bottom:6px;">'
+       + '<label class="col-sm-3 col-form-label" style="text-align:right;">'
+       + esc(label)+' <small class="text-muted">'+tag+'</small></label>'
+       + '<div class="col-sm-9">'
+       + (multi
+           ? '<textarea class="form-control fld" data-tag="'+tag+'" rows="3">'+esc(v)+'</textarea>'
+           : '<input type="text" class="form-control fld" data-tag="'+tag+'" value="'+escAttr(v)+'">')
+       + '</div></div>';
+  });
+  // 표시목록에 없지만 파일에 있던 태그(MetaSource 등)는 hidden 으로 보존
+  Object.keys(fields).forEach(function(tag){
+    if(shown[tag]) return;
+    h += '<input type="hidden" class="fld" data-tag="'+tag+'" value="'+escAttr(fields[tag])+'">';
+  });
+  return h;
+}
 
 function loadFolders(){
   post('folders', {}, function(d){
@@ -112,7 +144,16 @@ function doMatch(){
 function pollMatch(){
   post('match_result', {}, function(d){
     if(!d||d.ret!=='success') return;
-    if(d.status==='running'){ setTimeout(pollMatch, 1500); return; }
+    if(d.status==='running'){
+      var t = d.total||0, done = d.done||0;
+      var pct = t ? Math.round(done*100/t) : 0;
+      var h = '<div style="margin:4px 0;"><b>매칭 스캔 중…</b> '+done+' / '+t+' ('+pct+'%)'
+            + (d.current ? ' <span class="text-muted">— '+esc(d.current)+'</span>' : '') + '</div>'
+            + '<div class="progress" style="height:8px;">'
+            + '<div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width:'+pct+'%;"></div></div>';
+      $('#matchBox').html(h);
+      setTimeout(pollMatch, 1000); return;
+    }
     if(d.status==='error'){ $('#matchBox').html('<p class="text-danger">오류: '+esc((d.result||{}).error)+'</p>'); return; }
     renderMatch(d.result||{});
   });
@@ -189,7 +230,7 @@ function openEdit(folder){
   post('get_xml', {arg1: folder}, function(d){
     if(!d||d.ret!=='success'){ alert('실패'); return; }
     $('#xmlTitle').text(folder);
-    $('#xmlText').val(d.xml || '');
+    $('#xmlFields').html(buildFieldForm(d.fields || {}));
     $('#xmlModal').modal('show');
   });
 }
@@ -206,7 +247,11 @@ $(document).ready(function(){
   $('body').on('click', '#runInfoBtn', function(){ runKind('run_info'); });
   $('body').on('click', '#runCoverBtn', function(){ runKind('run_cover'); });
   $('#xmlSaveBtn').on('click', function(){
-    post('save_xml', {arg1: editWork, arg2: $('#xmlText').val()}, function(d){
+    var fields = {};
+    $('#xmlFields .fld').each(function(){
+      fields[$(this).data('tag')] = $(this).val();
+    });
+    post('save_fields', {arg1: editWork, arg2: JSON.stringify(fields)}, function(d){
       alert((d&&d.msg)||'저장'); $('#xmlModal').modal('hide'); doScan();
     });
   });
