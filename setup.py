@@ -9,6 +9,7 @@ setting = {
         'list': [
             {'uri': 'basic/setting', 'name': '설정'},
             {'uri': 'basic/main',    'name': 'Info 관리'},
+            {'uri': 'basic/manual',  'name': '매뉴얼'},
             {'uri': 'log',           'name': '로그'},
         ],
     },

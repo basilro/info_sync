@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container-fluid" style="max-width:960px;">
+
+  <h3 style="margin-top:10px;">info_sync 매뉴얼</h3>
+  <p class="text-muted">작품 폴더를 스캔해 <b>info.xml / cover</b> 현황을 확인·편집하고,
+     여러 사이트에서 메타데이터를 가져와 자동으로 채워 넣는 플러그인.</p>
+
+  <!-- ── 사용 순서 ───────────────────────────────────────────── -->
+  <div style="border:1px solid #ddd; border-radius:6px; padding:14px; margin:14px 0;">
+    <h5>1. 사용 순서</h5>
+    <ol style="margin-bottom:0;">
+      <li><b>설정</b> 탭에서 <b>스캔 루트 폴더</b>를 지정한다(작품 폴더들이 들어있는 상위 폴더).</li>
+      <li><b>Info 관리</b> 탭 → <b>스캔</b>: 폴더 안 각 작품의 info.xml·cover 유무를 표로 본다.</li>
+      <li><b>매칭 스캔</b>: 폴더명을 제목으로 전 사이트를 교차조회해 후보를 찾는다.
+          제목 정규화 완전일치가 <b>1곳</b>이면 확정, 여러 곳이면 애매(대표 소스 우선순위로 기본 선택)로 분류된다.</li>
+      <li>후보를 확인·선택한 뒤 <b>info 작성</b> / <b>cover 작성</b>을 실행한다.
+          info 작성 시 표지가 없으면 함께 내려받는다.</li>
+    </ol>
+  </div>
+
+  <!-- ── 설정 항목 ───────────────────────────────────────────── -->
+  <div style="border:1px solid #ddd; border-radius:6px; padding:14px; margin:14px 0;">
+    <h5>2. 설정 항목</h5>
+    <ul style="margin-bottom:0;">
+      <li><b>스캔 루트 폴더</b> — 작품 폴더들의 부모 경로.</li>
+      <li><b>대표 소스 우선순위</b> — 완전일치가 여러 사이트일 때 앞쪽을 대표로 삼는다(콤마 구분).</li>
+      <li><b>빈 필드 병합 채우기</b> — 켜면 대표 소스의 <u>빈 필드만</u> 다른 사이트 완전일치 후보에서 채운다(기존 값은 덮지 않음).</li>
+      <li><b>cover 덮어쓰기</b> — 끄면 표지가 없을 때만 저장, 켜면 항상 새로 저장.</li>
+      <li><b>사이트별 쿠키</b> — 대부분 조회엔 불필요. 성인/로그인 필요한 작품만 JSON 배열 형식으로 입력.</li>
+    </ul>
+  </div>
+
+  <!-- ── 지원 사이트 ─────────────────────────────────────────── -->
+  <div style="border:1px solid #ddd; border-radius:6px; padding:14px; margin:14px 0;">
+    <h5>3. 지원 사이트 (10종)</h5>
+    <p class="text-muted" style="margin-bottom:6px;">설정 탭의 <b>provider 확인</b> 버튼으로 현재 사용 가능 여부를 볼 수 있다.</p>
+    <ul style="margin-bottom:0;">
+      <li><b>웹툰/만화</b> — 카카오웹툰, 네이버웹툰, 레진코믹스, 투믹스</li>
+      <li><b>웹소설</b> — 카카오페이지, 네이버시리즈, 노벨피아, 문피아, 조아라</li>
+      <li><b>도서/전자책</b> — 리디북스(웹툰·웹소설·책)</li>
+    </ul>
+  </div>
+
+  <!-- ── 리디북스 + flaresolverr ─────────────────────────────── -->
+  <div style="border:1px solid #f0c36d; border-radius:6px; padding:14px; margin:14px 0; background:#fffdf5;">
+    <h5>4. 리디북스 조회 준비 — flaresolverr 필요</h5>
+    <p style="margin-bottom:8px;">
+      리디북스(ridibooks.com)는 전 페이지가 <b>Cloudflare</b>로 보호돼 일반 요청은 전부 차단된다(403).
+      그래서 리디만은 <b>flaresolverr</b>(실제 브라우저로 Cloudflare를 통과시켜 주는 프록시)가
+      별도로 <u>설치·구동</u>되어 있어야 한다. 나머지 9개 사이트는 flaresolverr 없이 동작한다.
+    </p>
+
+    <h6 style="margin-top:10px;"><b>① flaresolverr 컨테이너 설치</b></h6>
+    <p style="margin:4px 0;">도커가 있는 환경에서 아래처럼 띄운다(포트 8191).</p>
+    <pre style="background:#f5f5f5; padding:10px; border-radius:4px; font-size:12px;">docker run -d \
+  --name flaresolverr \
+  --restart unless-stopped \
+  -p 8191:8191 \
+  -e LOG_LEVEL=info \
+  ghcr.io/flaresolverr/flaresolverr:latest</pre>
+    <p class="text-muted" style="margin:4px 0;">시놀로지는 <b>Container Manager</b>에서 이미지
+      <code>ghcr.io/flaresolverr/flaresolverr:latest</code>를 받아 로컬 포트 8191로 매핑하면 된다.</p>
+
+    <h6 style="margin-top:10px;"><b>② 설정 탭에 flaresolverr URL 입력</b></h6>
+    <p style="margin:4px 0;">설정 탭의 <b>flaresolverr URL</b> 칸에 <u>이 플러그인(FlaskFarm)이 도는 컨테이너에서
+      flaresolverr에 닿는 주소</u>를 넣는다. 끝에 <code>/v1</code>을 붙인다.</p>
+    <ul style="margin-bottom:6px;">
+      <li>두 컨테이너가 <b>기본 bridge</b>에 있으면 → <code>http://172.17.0.1:8191/v1</code>
+          (도커 호스트 게이트웨이. 기본값으로 이미 넣어져 있음)</li>
+      <li>둘이 <b>같은 사용자 정의 네트워크</b>에 있으면 → <code>http://flaresolverr:8191/v1</code> (컨테이너 이름)</li>
+      <li>FlaskFarm이 컨테이너가 아닌 호스트에서 직접 돌면 → <code>http://localhost:8191/v1</code></li>
+    </ul>
+    <p class="text-muted" style="margin:4px 0;">확인: 브라우저나 <code>curl http://&lt;host&gt;:8191/</code>에서
+      flaresolverr 상태 메시지가 나오면 정상. 리디 성인물(19)은 <b>리디북스 쿠키</b>도 함께 입력해야 조회된다(쿠키는 flaresolverr로 전달됨).</p>
+  </div>
+
+  <!-- ── 참고 ────────────────────────────────────────────────── -->
+  <div style="border:1px solid #ddd; border-radius:6px; padding:14px; margin:14px 0;">
+    <h5>5. 참고</h5>
+    <ul style="margin-bottom:0;">
+      <li>info.xml은 ComicInfo 형식으로 작성되며, 어느 사이트에서 가져왔는지 <b>MetaSource</b>에 기록된다.</li>
+      <li>표지는 <code>cover.jpg</code>(또는 유사 파일명)로 작품 폴더에 저장된다.</li>
+      <li>대부분의 조회는 로그인 없이 되지만, 성인물·유료작은 해당 사이트 쿠키가 필요할 수 있다.</li>
+    </ul>
+  </div>
+
+</div>
+{% endblock %}
