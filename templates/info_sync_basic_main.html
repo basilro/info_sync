@@ -20,7 +20,7 @@
   </div>
 
   <!-- 실행 상태 -->
-  <div id="runBox" style="display:none; border:1px solid #cce; border-radius:4px; padding:8px; margin:10px 0; background:#f7f9ff;">
+  <div id="runBox" style="display:none; border:1px solid #cce; border-radius:4px; padding:8px; margin:10px 0; color:#222; background:#f7f9ff;">
     <b>실행:</b> <span id="runStatus">-</span>
     (<span id="runDone">0</span>/<span id="runTotal">0</span>)
     <pre id="runLog" style="max-height:160px; overflow:auto; margin:6px 0 0; font-size:12px;"></pre>
@@ -173,7 +173,7 @@ function pollMatch(){
             + '<div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width:'+pct+'%;"></div></div>';
       if((d.log||[]).length){
         h += '<pre id="matchLog" style="max-height:220px; overflow:auto; margin:8px 0 0; '
-           + 'font-size:12px; background:#f7f9ff; border:1px solid #cce; border-radius:4px; padding:8px;">'
+           + 'font-size:12px; color:#222; background:#f7f9ff; border:1px solid #cce; border-radius:4px; padding:8px;">'
            + esc(d.log.join('\n')) + '</pre>';
       }
       $('#matchBox').html(h);
@@ -221,7 +221,7 @@ function renderMatch(res, log){
   if((log||[]).length){
     h += '<details style="margin-top:10px;"><summary style="cursor:pointer;">스캔 로그 (사이트별 결과)</summary>'
        + '<pre style="max-height:260px; overflow:auto; margin:6px 0 0; font-size:12px; '
-       + 'background:#f7f9ff; border:1px solid #cce; border-radius:4px; padding:8px;">'
+       + 'color:#222; background:#f7f9ff; border:1px solid #cce; border-radius:4px; padding:8px;">'
        + esc(log.join('\n')) + '</pre></details>';
   }
   $('#matchBox').html(h);
