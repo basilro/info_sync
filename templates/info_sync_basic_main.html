@@ -190,6 +190,7 @@ function doScan(){
         + '<td style="white-space:nowrap;">'
         +   '<button class="btn btn-xs btn-outline-success oneBtn" data-f="'+escAttr(r.folder)+'" data-n="'+escAttr(r.name)+'">'
         +     (r.has_info?'재매칭':'매칭')+'</button> '
+        +   '<button class="btn btn-xs btn-outline-secondary manListBtn" data-f="'+escAttr(r.folder)+'" data-n="'+escAttr(r.name)+'">수동</button> '
         +   '<button class="btn btn-xs btn-outline-primary editBtn" data-f="'+escAttr(r.folder)+'">보기/편집</button>'
         + '</td>'
         + '</tr>';
@@ -378,14 +379,15 @@ function runOne(cmd){
 }
 
 // ── 수동 매칭(사이트 선택 + 직접 검색) ──────────────────
-var manKey = '', manCands = [];
-function openManual(key){
-  manKey = key; manCands = [];
-  var e = window._MATCH[key]; if(!e) return;
-  $('#manTitle').text('수동 매칭 — ' + e.name);
-  $('#manApplyBtn').prop('disabled', true);
+// key 있으면 매칭결과 행에 지정(배치), 없으면 작품현황에서 즉시 info 작성
+var manKey = '', manFolder = '', manName = '', manCands = [];
+function openManual(folder, name, key){
+  manKey = key || ''; manFolder = folder || ''; manName = name || ''; manCands = [];
+  $('#manTitle').text('수동 매칭 — ' + name);
+  $('#manApplyBtn').prop('disabled', true)
+    .text(manKey ? '이 항목으로 매칭' : '이 항목으로 info 작성');
   $('#manResults').html('<p class="text-muted">사이트와 검색어를 정하고 [검색]을 누르세요.</p>');
-  $('#manQuery').val((e.name||'').replace(/\[[^\]]*\]/g,' ').replace(/\s+/g,' ').trim());
+  $('#manQuery').val((name||'').replace(/\[[^\]]*\]/g,' ').replace(/\s+/g,' ').trim());
   post('manual_sites', {}, function(d){
     var sites = (d&&d.sites)||[];
     $('#manSite').html(sites.map(function(s){
@@ -397,10 +399,9 @@ function openManual(key){
 function manSearch(){
   var site = $('#manSite').val(), q = $('#manQuery').val().trim();
   if(!q){ alert('검색어를 입력하세요'); return; }
-  var e = window._MATCH[manKey] || {};
   $('#manResults').html('<p>검색 중…</p>');
   $('#manApplyBtn').prop('disabled', true);
-  post('manual_search', {arg1: site, arg2: q, arg3: e.name||''}, function(d){
+  post('manual_search', {arg1: site, arg2: q, arg3: manName}, function(d){
     if(!d||d.ret!=='success'){ $('#manResults').html('<p class="text-danger">'+esc((d&&d.msg)||'실패')+'</p>'); return; }
     manCands = d.candidates||[];
     if(!manCands.length){ $('#manResults').html('<p class="text-muted">결과 없음. 검색어를 바꿔보세요.</p>'); return; }
@@ -415,14 +416,25 @@ function manSearch(){
 function manApply(){
   var i = parseInt($('#manCand').val(),10);
   if(isNaN(i) || !manCands[i]){ alert('결과를 선택하세요'); return; }
-  var c = manCands[i], e = window._MATCH[manKey];
-  if(!e) return;
-  e.manualPick = {provider: c.provider, id: c.id, title: c.title, provider_name: c.provider_name};
-  var row = $('#matchBox tr[data-key="'+manKey+'"]');
-  row.find('.pickCb').prop('checked', true);
-  row.find('.manPick').text('수동선택 → ' + c.provider + ' · ' + c.title);
-  updateSelCount();
-  $('#manModal').modal('hide');
+  var c = manCands[i];
+  if(manKey){
+    // 매칭 결과 행에 수동선택 지정 (배치 실행 시 반영)
+    var e = window._MATCH[manKey]; if(!e) return;
+    e.manualPick = {provider: c.provider, id: c.id, title: c.title, provider_name: c.provider_name};
+    var row = $('#matchBox tr[data-key="'+manKey+'"]');
+    row.find('.pickCb').prop('checked', true);
+    row.find('.manPick').text('수동선택 → ' + c.provider + ' · ' + c.title);
+    updateSelCount();
+    $('#manModal').modal('hide');
+  } else {
+    // 작품 현황에서 바로: 즉시 info 작성 (표지 없으면 함께 시도)
+    post('run_info', {arg1: JSON.stringify([{folder: manFolder, provider: c.provider, id: c.id}])},
+      function(d){
+        if(!d||d.ret!=='success'){ alert((d&&d.msg)||'실패'); return; }
+        $('#manModal').modal('hide');
+        $('#runBox').show(); pollRun();
+      });
+  }
 }
 
 // 페이지 재진입 시: 서버에 남아있는 진행상태를 조회해 폴링/렌더 재개
@@ -467,7 +479,13 @@ $(document).ready(function(){
     $('#matchBox tr[data-key] .pickCb').prop('checked', false); updateSelCount();
   });
   $('body').on('change', '#matchBox .pickCb', updateSelCount);
-  $('body').on('click', '.manBtn', function(){ openManual($(this).data('key')); });
+  $('body').on('click', '.manBtn', function(){
+    var k = $(this).data('key'); var e = window._MATCH[k] || {};
+    openManual(e.folder, e.name, k);
+  });
+  $('body').on('click', '.manListBtn', function(){
+    openManual($(this).data('f'), $(this).data('n'), null);
+  });
   $('#manSearchBtn').on('click', manSearch);
   $('#manApplyBtn').on('click', manApply);
   $('#manQuery').on('keydown', function(e){ if(e.which===13){ e.preventDefault(); manSearch(); } });
