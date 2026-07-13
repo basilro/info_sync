@@ -236,7 +236,10 @@ function renderMatch(res, log){
   var h = '<h5>매칭 결과 (총 '+(res.total||0)+')</h5>';
   h += '<div style="margin:6px 0;">'
      + '<button id="runInfoBtn" class="btn btn-sm btn-primary">선택 info 작성</button> '
-     + '<button id="runCoverBtn" class="btn btn-sm btn-outline-primary">선택 cover만</button></div>';
+     + '<button id="runCoverBtn" class="btn btn-sm btn-outline-primary">선택 cover만</button> '
+     + '<button id="selAllBtn" class="btn btn-sm btn-outline-secondary">전체선택</button> '
+     + '<button id="selNoneBtn" class="btn btn-sm btn-outline-secondary">전체해제</button> '
+     + '<span id="selCount" class="text-muted" style="margin-left:6px;"></span></div>';
   window._MATCH = {};
   h += groupTable('확정', res.confident||[], 'c', true);
   h += groupTable('애매(후보 선택)', res.ambiguous||[], 'a', true);
@@ -248,6 +251,12 @@ function renderMatch(res, log){
        + esc(log.join('\n')) + '</pre></details>';
   }
   $('#matchBox').html(h);
+  updateSelCount();
+}
+function updateSelCount(){
+  var total = $('#matchBox tr[data-key] .pickCb').length;
+  var sel = $('#matchBox tr[data-key] .pickCb:checked').length;
+  $('#selCount').text(total ? ('선택 '+sel+'/'+total) : '');
 }
 function collectPayload(){
   var items = [];
@@ -359,6 +368,13 @@ $(document).ready(function(){
   $('#oneCoverBtn').on('click', function(){ runOne('run_cover'); });
   $('body').on('click', '#runInfoBtn', function(){ runKind('run_info'); });
   $('body').on('click', '#runCoverBtn', function(){ runKind('run_cover'); });
+  $('body').on('click', '#selAllBtn', function(){
+    $('#matchBox tr[data-key] .pickCb').prop('checked', true); updateSelCount();
+  });
+  $('body').on('click', '#selNoneBtn', function(){
+    $('#matchBox tr[data-key] .pickCb').prop('checked', false); updateSelCount();
+  });
+  $('body').on('change', '#matchBox .pickCb', updateSelCount);
   $('#xmlSaveBtn').on('click', function(){
     var fields = {};
     $('#xmlFields .fld').each(function(){
