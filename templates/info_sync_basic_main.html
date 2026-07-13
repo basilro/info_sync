@@ -25,16 +25,18 @@
       <a class="nav-link" id="tabMatchLink" data-toggle="tab" href="#tabMatch" role="tab">매칭 결과</a>
     </li>
   </ul>
+
+  <!-- 실행 상태 (탭 무관하게 항상 표시) -->
+  <div id="runBox" style="display:none; border:1px solid #cce; border-radius:4px; padding:8px; margin:10px 0; color:#222; background:#f7f9ff;">
+    <b>실행:</b> <span id="runStatus">-</span>
+    (<span id="runDone">0</span>/<span id="runTotal">0</span>)
+    <pre id="runLog" style="max-height:160px; overflow:auto; margin:6px 0 0; font-size:12px;"></pre>
+  </div>
+
   <div class="tab-content" style="padding-top:12px;">
 
     <!-- 작품 현황 탭 -->
     <div class="tab-pane fade show active" id="tabList" role="tabpanel">
-      <!-- 실행 상태 -->
-      <div id="runBox" style="display:none; border:1px solid #cce; border-radius:4px; padding:8px; margin:10px 0; color:#222; background:#f7f9ff;">
-        <b>실행:</b> <span id="runStatus">-</span>
-        (<span id="runDone">0</span>/<span id="runTotal">0</span>)
-        <pre id="runLog" style="max-height:160px; overflow:auto; margin:6px 0 0; font-size:12px;"></pre>
-      </div>
       <!-- 작품 리스트 -->
       <div id="listBox"></div>
     </div>
