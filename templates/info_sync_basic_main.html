@@ -175,7 +175,9 @@ function pollMatch(){
       setTimeout(pollMatch, 1000); return;
     }
     if(d.status==='error'){ $('#matchBox').html('<p class="text-danger">오류: '+esc((d.result||{}).error)+'</p>'); return; }
-    renderMatch(d.result||{});
+    if(d.status==='done' && d.result){ renderMatch(d.result); return; }
+    // idle: 진행/결과 없음 — 비워둠
+    $('#matchBox').empty();
   });
 }
 function candSelect(entry, gi){
@@ -287,8 +289,22 @@ function runOne(cmd){
   });
 }
 
+// 페이지 재진입 시: 서버에 남아있는 진행상태를 조회해 폴링/렌더 재개
+function resumeState(){
+  pollMatch();                       // running이면 진행바 재개, done이면 결과 렌더
+  post('run_status', {}, function(d){
+    if(d && d.ret==='success' && (d.status==='running' || (d.log||[]).length)){
+      $('#runBox').show();
+      $('#runStatus').text(d.status); $('#runDone').text(d.done); $('#runTotal').text(d.total);
+      $('#runLog').text((d.log||[]).join('\n'));
+      if(d.status==='running') pollRun();
+    }
+  });
+}
+
 $(document).ready(function(){
   loadFolders();
+  resumeState();
   $('#browseBtn').on('click', function(e){ e.preventDefault();
     var cur = $('#folderPath').val().trim() || $('#folderSel').val() || '/';
     globalSelectLocalFolder('스캔 폴더', cur, function(r){ $('#folderPath').val(r); });
