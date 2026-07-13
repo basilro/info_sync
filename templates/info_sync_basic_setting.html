@@ -30,6 +30,10 @@
             value=arg['early_stop'],
             desc='켜면 우선순위 상위 사이트부터 조회하다 제목 완전일치가 나오면 이후 사이트는 건너뛴다. 스캔이 빨라지지만 다른 사이트 후보는 안 모은다(개별 재매칭은 항상 전체 조회).') }}
 
+        {{ macros.setting_checkbox('auto_confident', '확정은 자동 생성',
+            value=arg['auto_confident'],
+            desc='켜면 매칭 스캔 중 단일 완전일치(확정) 항목은 묻지 않고 바로 info.xml(+표지)을 생성한다. 애매/미매칭만 결과 탭에서 수동 처리. info.xml 이미 있는 폴더는 스캔에서 건너뛴다(재매칭은 개별 버튼).') }}
+
         {{ macros.setting_checkbox('merge_fill', '빈 필드 병합 채우기',
             value=arg['merge_fill'],
             desc='대표 소스의 빈 필드만 다른 사이트 완전일치 후보에서 채움(이미 값 있으면 안 덮어씀).') }}

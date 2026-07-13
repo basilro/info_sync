@@ -2,10 +2,7 @@
 {% block content %}
 <div class="container-fluid">
 
-  <!-- 매칭 결과 (최상단) -->
-  <div id="matchBox"></div>
-
-  <!-- 폴더 선택 -->
+  <!-- 폴더 선택 (공통) -->
   <div style="border:1px solid #ddd; border-radius:4px; padding:10px; margin:10px 0;">
     <div class="form-inline">
       <label style="font-weight:bold; margin-right:8px;">폴더</label>
@@ -16,18 +13,38 @@
       <button id="scanBtn" class="btn btn-sm btn-primary" style="margin-right:6px;">스캔</button>
       <button id="matchBtn" class="btn btn-sm btn-success">매칭 스캔</button>
     </div>
-    <small class="text-muted">스캔=폴더 내 작품의 info/cover 현황 · 매칭 스캔=제목으로 전 사이트 교차조회</small>
+    <small class="text-muted">스캔=폴더 내 작품의 info/cover 현황 · 매칭 스캔=제목으로 전 사이트 교차조회(info 있는 폴더는 건너뜀, 확정은 자동 생성)</small>
   </div>
 
-  <!-- 실행 상태 -->
-  <div id="runBox" style="display:none; border:1px solid #cce; border-radius:4px; padding:8px; margin:10px 0; color:#222; background:#f7f9ff;">
-    <b>실행:</b> <span id="runStatus">-</span>
-    (<span id="runDone">0</span>/<span id="runTotal">0</span>)
-    <pre id="runLog" style="max-height:160px; overflow:auto; margin:6px 0 0; font-size:12px;"></pre>
-  </div>
+  <!-- 탭: 작품 현황 / 매칭 결과 -->
+  <ul class="nav nav-tabs" id="mainTabs" role="tablist">
+    <li class="nav-item">
+      <a class="nav-link active" id="tabListLink" data-toggle="tab" href="#tabList" role="tab">작품 현황</a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link" id="tabMatchLink" data-toggle="tab" href="#tabMatch" role="tab">매칭 결과</a>
+    </li>
+  </ul>
+  <div class="tab-content" style="padding-top:12px;">
 
-  <!-- 작품 리스트 -->
-  <div id="listBox"></div>
+    <!-- 작품 현황 탭 -->
+    <div class="tab-pane fade show active" id="tabList" role="tabpanel">
+      <!-- 실행 상태 -->
+      <div id="runBox" style="display:none; border:1px solid #cce; border-radius:4px; padding:8px; margin:10px 0; color:#222; background:#f7f9ff;">
+        <b>실행:</b> <span id="runStatus">-</span>
+        (<span id="runDone">0</span>/<span id="runTotal">0</span>)
+        <pre id="runLog" style="max-height:160px; overflow:auto; margin:6px 0 0; font-size:12px;"></pre>
+      </div>
+      <!-- 작품 리스트 -->
+      <div id="listBox"></div>
+    </div>
+
+    <!-- 매칭 결과 탭 -->
+    <div class="tab-pane fade" id="tabMatch" role="tabpanel">
+      <div id="matchBox"><p class="text-muted">매칭 스캔을 실행하면 여기에 결과가 표시됩니다.</p></div>
+    </div>
+
+  </div>
 </div>
 
 <!-- info.xml 편집 모달 -->
@@ -128,7 +145,6 @@ function doScan(){
   curFolder = targetFolder();
   post('scan', {arg1: curFolder}, function(d){
     if(!d||d.ret!=='success'){ alert((d&&d.msg)||'실패'); return; }
-    $('#matchBox').empty();
     var rows = d.rows||[];
     var h = '<h5>작품 현황 ('+rows.length+') — '+esc(d.folder||'')+'</h5>';
     h += '<table class="table table-sm table-hover"><thead><tr>'
@@ -153,11 +169,13 @@ function doScan(){
 }
 
 // ── 매칭 스캔(교차조회) ────────────────────────────────
+function showMatchTab(){ $('#mainTabs a[href="#tabMatch"]').tab('show'); }
 function doMatch(){
   curFolder = targetFolder();
   post('match_scan', {arg1: curFolder}, function(d){
     if(!d||d.ret!=='success'){ alert((d&&d.msg)||'실패'); return; }
     $('#matchBox').html('<p>매칭 스캔 중…</p>');
+    showMatchTab();
     pollMatch();
   });
 }
@@ -182,8 +200,8 @@ function pollMatch(){
     }
     if(d.status==='error'){ $('#matchBox').html('<p class="text-danger">오류: '+esc((d.result||{}).error)+'</p>'); return; }
     if(d.status==='done' && d.result){ renderMatch(d.result, d.log); return; }
-    // idle: 진행/결과 없음 — 비워둠
-    $('#matchBox').empty();
+    // idle: 진행/결과 없음 — 안내문
+    $('#matchBox').html('<p class="text-muted">매칭 스캔을 실행하면 여기에 결과가 표시됩니다.</p>');
   });
 }
 function candSelect(entry, gi){
@@ -200,9 +218,14 @@ function groupTable(title, list, gi, withSel){
   h += '<table class="table table-sm"><tbody>';
   list.forEach(function(e, idx){
     window._MATCH = window._MATCH || {}; window._MATCH[gi+'_'+idx] = e;
+    // 확정 자동생성된 항목은 이미 처리됨 → 기본 체크 해제
+    var checked = (gi==='c' && !e.auto) ? 'checked' : '';
+    var mark = '';
+    if(e.auto) mark = ' <span class="badge badge-info">자동생성</span>';
+    else if(e.auto_error) mark = ' <span class="badge badge-danger">자동실패</span>';
     h += '<tr data-key="'+gi+'_'+idx+'">'
-      + '<td style="width:24px;"><input type="checkbox" class="pickCb" '+(gi==='c'?'checked':'')+'></td>'
-      + '<td>'+esc(e.name)+' '+badge(e.has_info)+badge(e.has_cover)+'</td>'
+      + '<td style="width:24px;"><input type="checkbox" class="pickCb" '+checked+'></td>'
+      + '<td>'+esc(e.name)+' '+badge(e.has_info)+badge(e.has_cover)+mark+'</td>'
       + '<td>'+(withSel ? candSelect(e, gi+'_'+idx) : (e.pick?esc(e.pick.provider)+' · '+esc(e.pick.title):''))+'</td>'
       + '</tr>';
   });
@@ -303,6 +326,13 @@ function runOne(cmd){
 
 // 페이지 재진입 시: 서버에 남아있는 진행상태를 조회해 폴링/렌더 재개
 function resumeState(){
+  // 매칭 스캔이 진행 중이거나 결과가 남아있으면 매칭 결과 탭으로 전환
+  post('match_result', {}, function(d){
+    if(d && d.ret==='success' && (d.status==='running'
+        || (d.status==='done' && d.result))){
+      showMatchTab();
+    }
+  });
   pollMatch();                       // running이면 진행바 재개, done이면 결과 렌더
   post('run_status', {}, function(d){
     if(d && d.ret==='success' && (d.status==='running' || (d.log||[]).length)){
