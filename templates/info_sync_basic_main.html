@@ -80,6 +80,35 @@
   </div></div>
 </div>
 
+<div class="modal fade" id="manModal" tabindex="-1">
+  <div class="modal-dialog modal-lg"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title" id="manTitle">수동 매칭</h5>
+      <button type="button" class="close" data-dismiss="modal">&times;</button></div>
+    <div class="modal-body">
+      <div class="form-row" style="align-items:flex-end;">
+        <div class="col-sm-3">
+          <label style="font-size:12px; margin-bottom:2px;">사이트</label>
+          <select id="manSite" class="form-control form-control-sm"></select>
+        </div>
+        <div class="col-sm-6">
+          <label style="font-size:12px; margin-bottom:2px;">검색어</label>
+          <input id="manQuery" type="text" class="form-control form-control-sm" placeholder="검색어 입력">
+        </div>
+        <div class="col-sm-3">
+          <button id="manSearchBtn" class="btn btn-sm btn-primary btn-block">검색</button>
+        </div>
+      </div>
+      <div id="manResults" style="margin-top:10px;">
+        <p class="text-muted">사이트와 검색어를 정하고 [검색]을 누르세요.</p>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button id="manApplyBtn" class="btn btn-success" disabled>이 항목으로 매칭</button>
+      <button class="btn btn-secondary" data-dismiss="modal">닫기</button>
+    </div>
+  </div></div>
+</div>
+
 <script>
 var package_name = "{{ arg['package_name'] }}";
 var PKG = package_name;
@@ -204,11 +233,16 @@ function pollMatch(){
     $('#matchBox').html('<p class="text-muted">매칭 스캔을 실행하면 여기에 결과가 표시됩니다.</p>');
   });
 }
+function scoreTag(c){
+  if(c.exact) return ' [일치]';
+  var s = (typeof c.score==='number') ? Math.round(c.score*100) : null;
+  return s!==null ? ' ('+s+'%)' : '';
+}
 function candSelect(entry, gi){
   var opts = (entry.candidates||[]).map(function(c, i){
     var sel = (entry.pick && c.provider===entry.pick.provider && c.id===entry.pick.id) ? ' selected':'';
     return '<option value="'+i+'"'+sel+'>'+esc(c.provider)+' · '+esc(c.title)
-         + (c.exact?' [일치]':'')+' (#'+esc(c.id)+')</option>';
+         + scoreTag(c)+' (#'+esc(c.id)+')</option>';
   }).join('');
   return '<select class="form-control form-control-sm candSel" data-g="'+gi+'">'+opts+'</select>';
 }
@@ -223,10 +257,16 @@ function groupTable(title, list, gi, withSel){
     var mark = '';
     if(e.auto) mark = ' <span class="badge badge-info">자동생성</span>';
     else if(e.auto_error) mark = ' <span class="badge badge-danger">자동실패</span>';
-    h += '<tr data-key="'+gi+'_'+idx+'">'
+    var key = gi+'_'+idx;
+    var pickCell = withSel ? candSelect(e, key)
+      : (e.pick ? esc(e.pick.provider)+' · '+esc(e.pick.title)
+                : '<span class="text-muted">후보 없음</span>');
+    h += '<tr data-key="'+key+'">'
       + '<td style="width:24px;"><input type="checkbox" class="pickCb" '+checked+'></td>'
       + '<td>'+esc(e.name)+' '+badge(e.has_info)+badge(e.has_cover)+mark+'</td>'
-      + '<td>'+(withSel ? candSelect(e, gi+'_'+idx) : (e.pick?esc(e.pick.provider)+' · '+esc(e.pick.title):''))+'</td>'
+      + '<td>'+pickCell
+      + ' <button class="btn btn-sm btn-outline-secondary manBtn" data-key="'+key+'">수동</button>'
+      + '<div class="manPick" style="font-size:12px; color:#0a7; margin-top:2px;"></div></td>'
       + '</tr>';
   });
   h += '</tbody></table>';
@@ -264,9 +304,11 @@ function collectPayload(){
     if(!$(this).find('.pickCb').is(':checked')) return;
     var e = window._MATCH[$(this).data('key')];
     if(!e) return;
-    var sel = $(this).find('.candSel');
-    var pick = e.pick;
-    if(sel.length){ pick = e.candidates[parseInt(sel.val(),10)]; }
+    var pick = e.manualPick || e.pick;
+    if(!e.manualPick){
+      var sel = $(this).find('.candSel');
+      if(sel.length){ pick = e.candidates[parseInt(sel.val(),10)]; }
+    }
     if(!pick) return;
     items.push({folder: e.folder, provider: pick.provider, id: pick.id});
   });
@@ -314,7 +356,7 @@ function openOne(folder, name){
     if(!oneCands.length){ $('#oneBody').html('<p class="text-muted">후보 없음. 폴더명을 확인하거나 보기/편집에서 직접 입력하세요.</p>'); return; }
     var opts = oneCands.map(function(c, i){
       return '<option value="'+i+'">'+esc(c.provider)+' · '+esc(c.title)
-           + (c.exact?' [일치]':'')+' (#'+esc(c.id)+')</option>';
+           + scoreTag(c)+' (#'+esc(c.id)+')</option>';
     }).join('');
     $('#oneBody').html('<label style="font-weight:bold;">후보 선택 ('+oneCands.length+')</label>'
       + '<select id="oneCand" class="form-control form-control-sm">'+opts+'</select>'
@@ -331,6 +373,54 @@ function runOne(cmd){
     $('#oneModal').modal('hide');
     $('#runBox').show(); pollRun();
   });
+}
+
+// ── 수동 매칭(사이트 선택 + 직접 검색) ──────────────────
+var manKey = '', manCands = [];
+function openManual(key){
+  manKey = key; manCands = [];
+  var e = window._MATCH[key]; if(!e) return;
+  $('#manTitle').text('수동 매칭 — ' + e.name);
+  $('#manApplyBtn').prop('disabled', true);
+  $('#manResults').html('<p class="text-muted">사이트와 검색어를 정하고 [검색]을 누르세요.</p>');
+  $('#manQuery').val((e.name||'').replace(/\[[^\]]*\]/g,' ').replace(/\s+/g,' ').trim());
+  post('manual_sites', {}, function(d){
+    var sites = (d&&d.sites)||[];
+    $('#manSite').html(sites.map(function(s){
+      return '<option value="'+esc(s.key)+'">'+esc(s.name)+'</option>';
+    }).join(''));
+  });
+  $('#manModal').modal('show');
+}
+function manSearch(){
+  var site = $('#manSite').val(), q = $('#manQuery').val().trim();
+  if(!q){ alert('검색어를 입력하세요'); return; }
+  var e = window._MATCH[manKey] || {};
+  $('#manResults').html('<p>검색 중…</p>');
+  $('#manApplyBtn').prop('disabled', true);
+  post('manual_search', {arg1: site, arg2: q, arg3: e.name||''}, function(d){
+    if(!d||d.ret!=='success'){ $('#manResults').html('<p class="text-danger">'+esc((d&&d.msg)||'실패')+'</p>'); return; }
+    manCands = d.candidates||[];
+    if(!manCands.length){ $('#manResults').html('<p class="text-muted">결과 없음. 검색어를 바꿔보세요.</p>'); return; }
+    var opts = manCands.map(function(c,i){
+      return '<option value="'+i+'">'+esc(c.title)+scoreTag(c)+' (#'+esc(c.id)+')</option>';
+    }).join('');
+    $('#manResults').html('<label style="font-weight:bold;">검색 결과 ('+manCands.length+') — 하나 선택</label>'
+      + '<select id="manCand" class="form-control form-control-sm" size="8">'+opts+'</select>');
+    $('#manApplyBtn').prop('disabled', false);
+  });
+}
+function manApply(){
+  var i = parseInt($('#manCand').val(),10);
+  if(isNaN(i) || !manCands[i]){ alert('결과를 선택하세요'); return; }
+  var c = manCands[i], e = window._MATCH[manKey];
+  if(!e) return;
+  e.manualPick = {provider: c.provider, id: c.id, title: c.title, provider_name: c.provider_name};
+  var row = $('#matchBox tr[data-key="'+manKey+'"]');
+  row.find('.pickCb').prop('checked', true);
+  row.find('.manPick').text('수동선택 → ' + c.provider + ' · ' + c.title);
+  updateSelCount();
+  $('#manModal').modal('hide');
 }
 
 // 페이지 재진입 시: 서버에 남아있는 진행상태를 조회해 폴링/렌더 재개
@@ -375,6 +465,10 @@ $(document).ready(function(){
     $('#matchBox tr[data-key] .pickCb').prop('checked', false); updateSelCount();
   });
   $('body').on('change', '#matchBox .pickCb', updateSelCount);
+  $('body').on('click', '.manBtn', function(){ openManual($(this).data('key')); });
+  $('#manSearchBtn').on('click', manSearch);
+  $('#manApplyBtn').on('click', manApply);
+  $('#manQuery').on('keydown', function(e){ if(e.which===13){ e.preventDefault(); manSearch(); } });
   $('#xmlSaveBtn').on('click', function(){
     var fields = {};
     $('#xmlFields .fld').each(function(){
