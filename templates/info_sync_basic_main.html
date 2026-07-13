@@ -171,11 +171,17 @@ function pollMatch(){
             + (d.current ? ' <span class="text-muted">— '+esc(d.current)+'</span>' : '') + '</div>'
             + '<div class="progress" style="height:8px;">'
             + '<div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width:'+pct+'%;"></div></div>';
+      if((d.log||[]).length){
+        h += '<pre id="matchLog" style="max-height:220px; overflow:auto; margin:8px 0 0; '
+           + 'font-size:12px; background:#f7f9ff; border:1px solid #cce; border-radius:4px; padding:8px;">'
+           + esc(d.log.join('\n')) + '</pre>';
+      }
       $('#matchBox').html(h);
+      var lg = document.getElementById('matchLog'); if(lg) lg.scrollTop = lg.scrollHeight;
       setTimeout(pollMatch, 1000); return;
     }
     if(d.status==='error'){ $('#matchBox').html('<p class="text-danger">오류: '+esc((d.result||{}).error)+'</p>'); return; }
-    if(d.status==='done' && d.result){ renderMatch(d.result); return; }
+    if(d.status==='done' && d.result){ renderMatch(d.result, d.log); return; }
     // idle: 진행/결과 없음 — 비워둠
     $('#matchBox').empty();
   });
@@ -203,7 +209,7 @@ function groupTable(title, list, gi, withSel){
   h += '</tbody></table>';
   return h;
 }
-function renderMatch(res){
+function renderMatch(res, log){
   var h = '<h5>매칭 결과 (총 '+(res.total||0)+')</h5>';
   h += '<div style="margin:6px 0;">'
      + '<button id="runInfoBtn" class="btn btn-sm btn-primary">선택 info 작성</button> '
@@ -212,6 +218,12 @@ function renderMatch(res){
   h += groupTable('확정', res.confident||[], 'c', true);
   h += groupTable('애매(후보 선택)', res.ambiguous||[], 'a', true);
   h += groupTable('미매칭', res.nomatch||[], 'n', false);
+  if((log||[]).length){
+    h += '<details style="margin-top:10px;"><summary style="cursor:pointer;">스캔 로그 (사이트별 결과)</summary>'
+       + '<pre style="max-height:260px; overflow:auto; margin:6px 0 0; font-size:12px; '
+       + 'background:#f7f9ff; border:1px solid #cce; border-radius:4px; padding:8px;">'
+       + esc(log.join('\n')) + '</pre></details>';
+  }
   $('#matchBox').html(h);
 }
 function collectPayload(){
