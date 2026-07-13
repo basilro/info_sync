@@ -26,6 +26,10 @@
             value=arg['provider_priority'],
             desc='콤마로 구분. 완전일치가 여러 사이트일 때 앞쪽을 대표로 삼는다. 예) kakaopage,kakao,naver') }}
 
+        {{ macros.setting_checkbox('early_stop', '완전일치 시 즉시 중단',
+            value=arg['early_stop'],
+            desc='켜면 우선순위 상위 사이트부터 조회하다 제목 완전일치가 나오면 이후 사이트는 건너뛴다. 스캔이 빨라지지만 다른 사이트 후보는 안 모은다(개별 재매칭은 항상 전체 조회).') }}
+
         {{ macros.setting_checkbox('merge_fill', '빈 필드 병합 채우기',
             value=arg['merge_fill'],
             desc='대표 소스의 빈 필드만 다른 사이트 완전일치 후보에서 채움(이미 값 있으면 안 덮어씀).') }}
