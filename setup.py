@@ -30,7 +30,8 @@ try:
     for _name in ('worker', 'providers', 'client_kakaopage',
                   'client_kakao', 'client_naver', 'client_series',
                   'client_novelpia', 'client_lezhin', 'client_munpia',
-                  'client_joara', 'client_toomics', 'client_ridi'):
+                  'client_joara', 'client_toomics', 'client_ridi',
+                  'client_naverbook'):
         if (not _os.path.exists(_os.path.join(_here, _name + '.py'))) \
                 and _os.path.exists(_os.path.join(_here, _name + '.pyf')):
             _mod = SupportSC.load_module_f(__file__, _name)
