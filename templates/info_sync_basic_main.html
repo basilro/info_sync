@@ -12,8 +12,11 @@
       <button id="browseBtn" class="btn btn-sm btn-outline-secondary" style="margin-right:6px;">찾아보기</button>
       <button id="scanBtn" class="btn btn-sm btn-primary" style="margin-right:6px;">스캔</button>
       <button id="matchBtn" class="btn btn-sm btn-success">매칭 스캔</button>
+      <label style="margin:0 0 0 10px; font-size:13px; white-space:nowrap;">
+        <input id="scanAll" type="checkbox"> 전체 스캔(최신 포함)
+      </label>
     </div>
-    <small class="text-muted">스캔=폴더 내 작품의 info/cover 현황 · 매칭 스캔=제목으로 전 사이트 교차조회(info 있는 폴더는 건너뜀, 확정은 자동 생성)</small>
+    <small class="text-muted">스캔=폴더 내 작품의 info/cover 현황 · 매칭 스캔=제목으로 전 사이트 교차조회 · 기본은 info 없음/미최신만, 전체 스캔 체크 시 최신 작품까지 모두 재조회</small>
   </div>
 
   <!-- 탭: 작품 현황 / 매칭 결과 -->
@@ -211,7 +214,8 @@ function doScan(){
 function showMatchTab(){ $('#mainTabs a[href="#tabMatch"]').tab('show'); }
 function doMatch(){
   curFolder = targetFolder();
-  post('match_scan', {arg1: curFolder}, function(d){
+  var allMode = $('#scanAll').is(':checked') ? '1' : '';
+  post('match_scan', {arg1: curFolder, arg2: allMode}, function(d){
     if(!d||d.ret!=='success'){ alert((d&&d.msg)||'실패'); return; }
     $('#matchBox').html('<p>매칭 스캔 중…</p>');
     showMatchTab();
