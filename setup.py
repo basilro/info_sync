@@ -9,6 +9,7 @@ setting = {
         'list': [
             {'uri': 'basic/setting', 'name': '설정'},
             {'uri': 'basic/main',    'name': 'Info 관리'},
+            {'uri': 'basic/text2epub', 'name': 'TXT→EPUB'},
             {'uri': 'basic/manual',  'name': '매뉴얼'},
             {'uri': 'log',           'name': '로그'},
         ],
@@ -31,7 +32,7 @@ try:
                   'client_kakao', 'client_naver', 'client_series',
                   'client_novelpia', 'client_lezhin', 'client_munpia',
                   'client_joara', 'client_toomics', 'client_ridi',
-                  'client_naverbook'):
+                  'client_naverbook', 'epub_builder'):
         if (not _os.path.exists(_os.path.join(_here, _name + '.py'))) \
                 and _os.path.exists(_os.path.join(_here, _name + '.pyf')):
             _mod = SupportSC.load_module_f(__file__, _name)

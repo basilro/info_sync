@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container-fluid" style="max-width:1000px;">
+
+  <h3 style="margin-top:10px;">TXT → EPUB</h3>
+  <p class="text-muted" style="margin-bottom:10px;">
+    폴더 안 각 작품 하위 폴더에 <b>.txt</b> 회차 파일이 있으면 EPUB으로 묶어준다.
+    <code>cover.jpg</code>·<code>info.xml</code>이 있으면 표지·제목/작가로 함께 반영된다.</p>
+
+  <!-- 폴더 선택 -->
+  <div style="border:1px solid #ddd; border-radius:4px; padding:10px; margin:10px 0;">
+    <div class="form-inline">
+      <label style="font-weight:bold; margin-right:8px;">폴더</label>
+      <select id="folderSel" class="form-control" style="min-width:280px; margin-right:6px;"></select>
+      <input id="folderPath" type="text" class="form-control"
+             placeholder="직접 경로 입력" style="min-width:320px; margin-right:6px;">
+      <button id="browseBtn" class="btn btn-sm btn-outline-secondary" style="margin-right:6px;">찾아보기</button>
+      <button id="scanBtn" class="btn btn-sm btn-primary">스캔</button>
+    </div>
+    <div style="margin-top:8px;">
+      <label style="margin-right:14px; font-size:13px;">
+        <input id="perTxt" type="checkbox"> 회차별 EPUB(파일마다 하나씩)</label>
+      <label style="margin-right:14px; font-size:13px;">
+        <input id="overwrite" type="checkbox"> EPUB 있어도 다시 생성</label>
+      <button id="buildBtn" class="btn btn-sm btn-success">변환 시작</button>
+    </div>
+    <small class="text-muted">기본은 <b>합본</b>(작품당 EPUB 1개) · 이미 EPUB이 있는 작품은 건너뜀(체크 시 재생성)</small>
+  </div>
+
+  <!-- 스캔 결과 -->
+  <table class="table table-sm table-bordered" style="margin-top:6px;">
+    <thead class="thead-light">
+      <tr><th>작품</th><th style="width:80px;">txt</th><th style="width:70px;">epub</th>
+          <th style="width:70px;">cover</th><th style="width:70px;">info</th></tr>
+    </thead>
+    <tbody id="rows"><tr><td colspan="5" class="text-muted">스캔을 눌러 작품 목록을 확인하세요.</td></tr></tbody>
+  </table>
+
+  <!-- 진행 상황 -->
+  <div id="progWrap" style="display:none; margin-top:10px;">
+    <div><b>진행:</b> <span id="prog">-</span> <span id="cur" class="text-muted"></span></div>
+    <pre id="log" style="background:#f5f5f5; padding:10px; border-radius:4px;
+         font-size:12px; max-height:320px; overflow:auto; margin-top:6px;"></pre>
+  </div>
+
+</div>
+
+<script>
+var PKG = "{{ arg['package_name'] }}";
+function post(cmd, args, cb){
+  args = args || {}; args.command = cmd;
+  $.post('/' + PKG + '/ajax/basic/command', args, cb);
+}
+function badge(ok){ return ok
+  ? '<span class="badge badge-success">O</span>'
+  : '<span class="badge badge-secondary">-</span>'; }
+function targetFolder(){
+  return $('#folderPath').val().trim() || $('#folderSel').val() || '';
+}
+var t2ePoll = null;
+
+$(document).ready(function(){
+  // 폴더 드롭다운
+  post('folders', {}, function(d){
+    if(d && d.ret==='success'){
+      var sel = $('#folderSel').empty();
+      (d.folders||[]).forEach(function(f){ sel.append($('<option>').val(f).text(f)); });
+    }
+  });
+
+  $('#browseBtn').on('click', function(e){
+    e.preventDefault();
+    var cur = $('#folderPath').val().trim() || $('#folderSel').val() || '/';
+    globalSelectLocalFolder('폴더 선택', cur, function(r){ $('#folderPath').val(r); });
+  });
+
+  $('#scanBtn').on('click', function(){
+    post('t2e_scan', {arg1: targetFolder()}, function(d){
+      var tb = $('#rows').empty();
+      if(!d || d.ret!=='success'){ tb.append('<tr><td colspan="5">실패</td></tr>'); return; }
+      var rows = d.rows||[];
+      if(!rows.length){ tb.append('<tr><td colspan="5" class="text-muted">txt 파일이 있는 작품 없음</td></tr>'); return; }
+      rows.forEach(function(r){
+        tb.append('<tr><td>'+r.name+'</td><td>'+r.txt_count+'</td><td>'
+          +badge(r.has_epub)+'</td><td>'+badge(r.has_cover)+'</td><td>'
+          +badge(r.has_info)+'</td></tr>');
+      });
+    });
+  });
+
+  $('#buildBtn').on('click', function(){
+    var per = $('#perTxt').is(':checked') ? '1':'0';
+    var ow = $('#overwrite').is(':checked') ? '1':'0';
+    post('t2e_build', {arg1: targetFolder(), arg2: per, arg3: ow}, function(d){
+      if(!d || d.ret!=='success'){ alert((d&&d.msg)||'실패'); return; }
+      $('#progWrap').show();
+      if(t2ePoll) clearInterval(t2ePoll);
+      t2ePoll = setInterval(pollStatus, 1000);
+      pollStatus();
+    });
+  });
+
+  function pollStatus(){
+    post('t2e_status', {}, function(d){
+      if(!d || d.ret!=='success') return;
+      $('#prog').text(d.done + ' / ' + d.total + ' (' + d.status + ')');
+      $('#cur').text(d.current ? '· ' + d.current : '');
+      $('#log').text((d.log||[]).join('\n'));
+      $('#log').scrollTop($('#log')[0].scrollHeight);
+      if(d.status==='done' || d.status==='error'){
+        clearInterval(t2ePoll); t2ePoll = null;
+        $('#scanBtn').click();
+      }
+    });
+  }
+});
+</script>
+{% endblock %}
