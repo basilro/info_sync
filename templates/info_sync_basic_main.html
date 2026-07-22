@@ -252,11 +252,13 @@ function scoreTag(c){
   var s = (typeof c.score==='number') ? Math.round(c.score*100) : null;
   return s!==null ? ' ('+s+'%)' : '';
 }
+// 같은 제목 후보 구분용 — 작가가 있으면 제목 뒤에 붙인다.
+function authTag(c){ return (c && c.author) ? ' — '+esc(c.author) : ''; }
 function candSelect(entry, gi){
   var opts = (entry.candidates||[]).map(function(c, i){
     var sel = (entry.pick && c.provider===entry.pick.provider && c.id===entry.pick.id) ? ' selected':'';
     return '<option value="'+i+'"'+sel+'>'+esc(c.provider)+' · '+esc(c.title)
-         + scoreTag(c)+' (#'+esc(c.id)+')</option>';
+         + authTag(c) + scoreTag(c)+' (#'+esc(c.id)+')</option>';
   }).join('');
   return '<select class="form-control form-control-sm candSel" data-g="'+gi+'">'+opts+'</select>';
 }
@@ -273,7 +275,7 @@ function groupTable(title, list, gi, withSel){
     else if(e.auto_error) mark = ' <span class="badge badge-danger">자동실패</span>';
     var key = gi+'_'+idx;
     var pickCell = withSel ? candSelect(e, key)
-      : (e.pick ? esc(e.pick.provider)+' · '+esc(e.pick.title)
+      : (e.pick ? esc(e.pick.provider)+' · '+esc(e.pick.title)+authTag(e.pick)
                 : '<span class="text-muted">후보 없음</span>');
     h += '<tr data-key="'+key+'">'
       + '<td style="width:24px;"><input type="checkbox" class="pickCb" '+checked+'></td>'
@@ -370,7 +372,7 @@ function openOne(folder, name){
     if(!oneCands.length){ $('#oneBody').html('<p class="text-muted">후보 없음. 폴더명을 확인하거나 보기/편집에서 직접 입력하세요.</p>'); return; }
     var opts = oneCands.map(function(c, i){
       return '<option value="'+i+'">'+esc(c.provider)+' · '+esc(c.title)
-           + scoreTag(c)+' (#'+esc(c.id)+')</option>';
+           + authTag(c) + scoreTag(c)+' (#'+esc(c.id)+')</option>';
     }).join('');
     $('#oneBody').html('<label style="font-weight:bold;">후보 선택 ('+oneCands.length+')</label>'
       + '<select id="oneCand" class="form-control form-control-sm">'+opts+'</select>'
@@ -417,7 +419,7 @@ function manSearch(){
     manCands = d.candidates||[];
     if(!manCands.length){ $('#manResults').html('<p class="text-muted">결과 없음. 검색어를 바꿔보세요.</p>'); return; }
     var opts = manCands.map(function(c,i){
-      return '<option value="'+i+'">'+esc(c.title)+scoreTag(c)+' (#'+esc(c.id)+')</option>';
+      return '<option value="'+i+'">'+esc(c.title)+authTag(c)+scoreTag(c)+' (#'+esc(c.id)+')</option>';
     }).join('');
     $('#manResults').html('<label style="font-weight:bold;">검색 결과 ('+manCands.length+') — 하나 선택</label>'
       + '<select id="manCand" class="form-control form-control-sm" size="8">'+opts+'</select>');
@@ -431,10 +433,11 @@ function manApply(){
   if(manKey){
     // 매칭 결과 행에 수동선택 지정 (배치 실행 시 반영)
     var e = window._MATCH[manKey]; if(!e) return;
-    e.manualPick = {provider: c.provider, id: c.id, title: c.title, provider_name: c.provider_name};
+    e.manualPick = {provider: c.provider, id: c.id, title: c.title, author: c.author, provider_name: c.provider_name};
     var row = $('#matchBox tr[data-key="'+manKey+'"]');
     row.find('.pickCb').prop('checked', true);
-    row.find('.manPick').text('수동선택 → ' + c.provider + ' · ' + c.title);
+    row.find('.manPick').text('수동선택 → ' + c.provider + ' · ' + c.title
+      + (c.author ? ' — ' + c.author : ''));
     updateSelCount();
     $('#manModal').modal('hide');
   } else {
