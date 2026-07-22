@@ -87,6 +87,13 @@
             value=arg['flaresolverr_url'],
             desc='예) http://172.17.0.1:8191/v1 (ff→브리지 게이트웨이). 비우면 리디 조회 불가.') }}
 
+        <div style="margin-top:6px;">
+          <button id="ridiTestBtn" class="btn btn-sm btn-outline-primary">리디 연결 테스트</button>
+          <span id="ridiTestMsg" class="text-muted" style="margin-left:8px;"></span>
+          <div class="text-muted"><small>저장된 설정으로 검색→상세→표지를 실제 조회한다. URL을 바꿨으면 먼저 <b>설정 저장</b>. 최대 1분 소요.</small></div>
+          <div id="ridiTestResult" style="margin-top:6px;font-size:13px;"></div>
+        </div>
+
         <h5 style="margin-top:14px;">네이버 책 검색 API</h5>
         <small class="text-muted">네이버 개발자센터(developers.naver.com)에서 애플리케이션 등록 후 발급받은 검색 API 키. 두 칸 모두 채워야 네이버책 소스가 활성화된다.</small>
         {{ macros.setting_input_text('naverbook_client_id', 'Client ID',
@@ -116,6 +123,39 @@ $(document).ready(function(){
     globalSelectLocalFolder('스캔 루트 폴더', cur, function(result){
       $('#scan_root').val(result);
     });
+  });
+  function esc(s){ return $('<div>').text(s==null?'':String(s)).html(); }
+  $('body').on('click', '#ridiTestBtn', function(e){
+    e.preventDefault();
+    var $btn = $(this);
+    $btn.prop('disabled', true);
+    $('#ridiTestMsg').html('<span class="text-muted">테스트 중… flaresolverr 경유(최대 1분)</span>');
+    $('#ridiTestResult').html('');
+    $.post('/' + package_name + '/ajax/basic/command',
+      {command:'test_provider', arg1:'ridi'},
+      function(data){
+        $btn.prop('disabled', false);
+        if(data && data.ret==='success'){
+          $('#ridiTestMsg').html(data.ok
+            ? '<b style="color:#28a745;">정상 동작 ✓</b>'
+            : '<b style="color:#dc3545;">문제 있음 ✗</b>');
+          var rows = (data.steps||[]).map(function(s){
+            var col = s.ok ? '#28a745' : '#dc3545';
+            var mark = s.ok ? '✓' : '✗';
+            return '<div><span style="color:'+col+';font-weight:bold;">'+mark+'</span> '
+                   + '<b>'+esc(s.label)+'</b>: '+esc(s.detail)+'</div>';
+          });
+          $('#ridiTestResult').html(rows.join(''));
+        } else {
+          $('#ridiTestMsg').html('');
+          $('#ridiTestResult').html('<span style="color:#dc3545;">'
+            + esc((data&&data.msg)||'실패') + '</span>');
+        }
+      }).fail(function(){
+        $btn.prop('disabled', false);
+        $('#ridiTestMsg').html('');
+        $('#ridiTestResult').html('<span style="color:#dc3545;">요청 실패</span>');
+      });
   });
   $('#providersBtn').on('click', function(){
     $.post('/' + package_name + '/ajax/basic/command', {command:'providers'},
